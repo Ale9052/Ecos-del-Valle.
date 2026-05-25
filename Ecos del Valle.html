@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Ecos del Valle - Pesadilla Pixel</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0a0606; 
+            --panel-decay: rgba(20, 12, 12, 0.98); 
+            --text-blood: #af1111; 
+            --text-pale: #cbd3dc;
+            --primary-glow: rgba(139, 0, 0, 0.2); 
+            --ui-border: #3a1a1a;
+        }
+
+        body {
+            margin: 0; 
+            background-color: var(--bg-dark); 
+            color: var(--text-pale);
+            font-family: 'Courier New', Courier, monospace; 
+            display: flex;
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center;
+            height: 100vh; 
+            overflow: hidden;
+            position: relative;
+        }
+
+        body::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle at center, rgba(139, 0, 0, 0.07) 0%, transparent 80%),
+                        repeating-linear-gradient(0deg, rgba(0,0,0,0.15) 0px, rgba(0,0,0,0.15) 1px, transparent 1px, transparent 2px);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        h1 { 
+            font-family: 'Georgia', serif; 
+            font-size: 2.2em; 
+            letter-spacing: 3px; 
+            color: var(--text-blood); 
+            text-shadow: 0 0 15px rgba(139, 0, 0, 0.8), 2px 2px #000; 
+            margin-bottom: 5px; 
+            margin-top: 0;
+            font-weight: normal;
+            text-transform: uppercase;
+        }
+        
+        h3 { 
+            font-family: 'Georgia', serif; 
+            font-size: 1em; 
+            color: #614646; 
+            margin: 0 0 10px 0; 
+            letter-spacing: 1px;
+        }
+
+        #setup-menu {
+            background: var(--panel-decay); 
+            padding: 25px 35px; 
+            border-radius: 2px;
+            border: 4px double var(--ui-border); 
+            text-align: center; 
+            z-index: 20;
+            box-shadow: 0 0 100px rgba(0,0,0,1);
+            width: 440px;
+            box-sizing: border-box;
+        }
+        
+        .game-wrapper { 
+            position: relative; 
+            padding: 16px; 
+            background: #110909; 
+            border-radius: 2px; 
+            display: none; 
+            border: 4px double var(--ui-border);
+            box-shadow: 0 0 120px rgba(0,0,0,1);
+            z-index: 10;
+        }
+        
+        canvas { 
+            background: #140d0d; 
+            display: block; 
+            image-rendering: pixelated; 
+            border: 2px solid #231212;
+        } 
+        
+        #proximity-vignette {
+            position: absolute; top: 16px; left: 16px; right: 16px; bottom: 16px;
+            pointer-events: none; 
+            z-index: 5;
+            box-shadow: inset 0 0 150px rgba(0,0,0,0.98); 
+            transition: box-shadow 0.2s ease-out, background-color 0.2s ease-out;
+        }
+
+        #jumpscare {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; display: none; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 10;
+            color: var(--text-blood); font-family: 'Georgia', serif; font-size: 2em;
+            text-align: center; letter-spacing: 2px;
+            text-shadow: 0 0 20px #ff0000;
+        }
+        
+        #jumpscare.win { 
+            background: #0d120d; 
+            color: #8be9fd; 
+            text-shadow: 0 0 20px rgba(0,255,100,0.4);
+        }
+
+        #jumpscare.stalker-win {
+            background: #1a0505;
+            color: #ff3333;
+            text-shadow: 0 0 25px #ff0000;
+        }
+
+        .stats { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 12px; 
+            font-size: 0.85em; 
+            color: #7c5d5d; 
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+        
+        .stat-v { 
+            color: #e2e7ed; 
+            text-shadow: 1px 1px #000;
+            margin-left: 5px; 
+        }
+
+        button {
+            background: #1a0f0f; 
+            color: var(--text-pale); 
+            border: 2px solid #3a1f1f; 
+            padding: 10px 20px; 
+            font-family: 'Courier New', Courier, monospace; 
+            font-size: 0.9em;
+            cursor: pointer; 
+            margin: 5px;
+            transition: all 0.1s ease;
+            box-shadow: 0 3px #000;
+        }
+        
+        button:hover { 
+            background: #2d1919; 
+            border-color: #5c2e2e;
+            color: #ffffff;
+        }
+
+        button:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px #000;
+        }
+
+        .btn-audio {
+            background: #2c1635;
+            border-color: #5c2a75;
+            color: #e6bfff;
+            font-size: 0.75em;
+            padding: 5px 12px;
+            margin: 0 auto 15px auto;
+            display: inline-block;
+            box-shadow: 0 2px #000;
+            animation: pulseAudioBtn 1.5s infinite alternate;
+        }
+        @keyframes pulseAudioBtn {
+            0% { border-color: #5c2a75; box-shadow: 0 2px #000, 0 0 5px rgba(92,42,117,0.3); }
+            100% { border-color: #b052e6; box-shadow: 0 2px #000, 0 0 12px rgba(176,82,230,0.6); }
+        }
+
+        .online-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 5px;
+        }
+
+        .btn-online { border-color: #1c2d42; color: #58a6ff; background: #0f1924; margin: 0; padding: 10px 5px; font-size: 0.85em; }
+        .btn-online:hover { background: #162536; border-color: #79adc7; }
+        
+        .btn-stalker { border-color: #5c1919; color: #ff6e6e; background: #240f0f; margin: 0; padding: 10px 5px; font-size: 0.85em; }
+        .btn-stalker:hover { background: #361414; border-color: #ff9e9e; }
+        
+        .btn-exit { 
+            background: transparent; 
+            border: none; 
+            color: #543f3f; 
+            padding: 5px 10px; 
+            font-size: 0.9em; 
+            margin: 0;
+            box-shadow: none;
+        }
+        .btn-exit:hover { color: var(--text-blood); }
+
+        .copy-btn { background: transparent; border: 1px dashed #4e2e2e; padding: 2px 6px; font-size: 0.75em; color: #916868; margin-left: 5px; box-shadow: none; }
+        .copy-btn:hover { border-style: solid; background: #1a0f0f; }
+        
+        input { 
+            padding: 10px; 
+            border: 2px solid #3a1f1f; 
+            width: 80%; 
+            margin: 10px 0; 
+            background: #0d0707; 
+            color: #ffbaba; 
+            font-family: 'Courier New', Courier, monospace; 
+            text-align: center;
+            letter-spacing: 1px;
+            box-sizing: border-box;
+            font-size: 0.85em;
+        }
+        input:focus { outline: none; border-color: var(--text-blood); }
+        hr { border: 0; border-top: 2px dashed var(--ui-border); margin: 20px 0; }
+    </style>
+</head>
+<body>
+
+    <div id="setup-menu">
+        <button id="audio-unlocker" class="btn-audio" onclick="unlockAudio()">🔊 SONIDO</button>
+        <h1>ECOS DEL VALLE</h1>
+        <p style="color: #8c7171; font-size: 0.8em; line-height: 1.5; margin: 10px 0 20px 0;">
+            Una Fruta Estelar corrupta yace en la niebla del Huerto Maldito.<br>
+            El Ente de las Sombras te caza ferozmente desde la oscuridad.<br>
+            Pulsa [ESPACIO] para emitir un destello espiritual... Revela el laberinto pixelado antes de que te atrape.
+        </p>
+        <button onclick="startSolo()">ENTRAR AL HUERTO</button>
+        <hr>
+        <h3>CONEXIÓN DE PESADILLA</h3>
+        <p style="font-size:0.8em; color: #8c7171; margin: 0 0 10px 0;">Tu frecuencia: <b id="my-id" style="color:#cbd3dc;">...</b> 
+           <button class="copy-btn" onclick="copyId()">COPIAR</button>
+        </p>
+        <input type="text" id="join-id" placeholder="Frecuencia de la Víctima">
+        
+        <div class="online-grid">
+            <button onclick="startOnline('escaper')" class="btn-online">SER GRANJERO</button>
+            <button onclick="startOnline('stalker')" class="btn-stalker">SER EL ENTE</button>
+        </div>
+    </div>
+
+    <div class="game-wrapper" id="game-ui">
+        <div class="stats">
+            <div>CORDURA: <span id="lvl-display" class="stat-v">1</span>/15</div>
+            <div>ACECHO ENTE: <span id="feast-display" class="stat-v" style="color:var(--text-blood)">0</span>/10</div>
+            <div>DESTELLOS: <span id="p-count" class="stat-v" style="color:#d4af37">15</span></div>
+            <button onclick="location.reload()" class="btn-exit">[ ESCAPAR ]</button>
+        </div>
+        
+        <div id="proximity-vignette"></div>
+        <div id="jumpscare"><span id="jumpscare-text">LA OSCURIDAD TE HA CONSUMIDO</span></div>
+        
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const vignette = document.getElementById('proximity-vignette');
+    const jumpscareLayer = document.getElementById('jumpscare');
+    const jumpscareText = document.getElementById('jumpscare-text');
+    canvas.width = 700; canvas.height = 450;
+
+    ctx.imageSmoothingEnabled = false;
+
+    const cellSize = 50;
+    const cols = Math.floor(canvas.width / cellSize);
+    const rows = Math.floor(canvas.height / cellSize);
+
+    let level = 1, pulses = 15, echoes = [], walls = [], particles = [], keys = {};
+    let captures = 0, isGameOver = false, hasStartedMoving = false;
+    let gameMode = 'solo', myRole = 'escaper';
+    let time = 0, startTime = Date.now(); 
+
+    // --- AUDIO ---
+    let audioCtx = null, menuMusicInterval = null, gameplayMusicInterval = null;
+    let menuGainNode = null, gameplayGainNode = null, lastHeartbeat = 0, currentIntensity = 0;
+
+    function unlockAudio() {
+        try {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            document.getElementById('audio-unlocker').style.display = 'none';
+            let osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+            startMenuMusic();
+        } catch(e) { console.error(e); }
+    }
+
+    function startMenuMusic() {
+        if (!audioCtx || menuMusicInterval) return;
+        menuGainNode = audioCtx.createGain();
+        menuGainNode.gain.setValueAtTime(0.25, audioCtx.currentTime);
+        menuGainNode.connect(audioCtx.destination);
+        let notes = [55, 58, 52, 49]; let step = 0;
+        menuMusicInterval = setInterval(() => {
+            if (!audioCtx || audioCtx.state === 'suspended') return;
+            let oscLow = audioCtx.createOscillator(), gainLow = audioCtx.createGain(), filter = audioCtx.createBiquadFilter();
+            oscLow.type = 'sawtooth'; oscLow.frequency.setValueAtTime(notes[step % notes.length], audioCtx.currentTime);
+            filter.type = 'lowpass'; filter.frequency.setValueAtTime(120, audioCtx.currentTime);
+            gainLow.gain.setValueAtTime(0, audioCtx.currentTime);
+            gainLow.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.4);
+            gainLow.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.4);
+            oscLow.connect(filter); filter.connect(gainLow); gainLow.connect(menuGainNode);
+            oscLow.start(); oscLow.stop(audioCtx.currentTime + 1.5);
+            step++;
+        }, 1200);
+    }
+
+    function fadeOutMenuMusic() {
+        if (menuGainNode && audioCtx) {
+            menuGainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.0);
+            setTimeout(() => { clearInterval(menuMusicInterval); menuMusicInterval = null; }, 1000);
+        }
+    }
+
+    function startGameplayMusic() {
+        if (!audioCtx || gameplayMusicInterval) return;
+        gameplayGainNode = audioCtx.createGain();
+        gameplayGainNode.gain.setValueAtTime(0.18, audioCtx.currentTime);
+        gameplayGainNode.connect(audioCtx.destination);
+        function playStep() {
+            if (isGameOver || !audioCtx) return;
+            let osc = audioCtx.createOscillator(), gain = audioCtx.createGain(), filter = audioCtx.createBiquadFilter();
+            let baseFreq = currentIntensity > 0.6 ? 65 : 40;
+            osc.type = 'sawtooth'; osc.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);
+            filter.type = 'lowpass'; filter.frequency.setValueAtTime(100 + (currentIntensity * 200), audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.15 + (currentIntensity * 0.2), audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+            osc.connect(filter); filter.connect(gain); gain.connect(gameplayGainNode);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+            let nextTempo = 800 - (currentIntensity * 550);
+            gameplayMusicInterval = setTimeout(playStep, nextTempo);
+        }
+        playStep();
+    }
+
+    function playEchoSound() {
+        if (!audioCtx || audioCtx.state === 'suspended') return;
+        let osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+        osc.type = 'triangle'; osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.5);
+        gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+    }
+
+    function playHeartbeatSound(intensity) {
+        if (!audioCtx || audioCtx.state === 'suspended') return;
+        let osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+        osc.type = 'sine'; osc.frequency.setValueAtTime(50 + (intensity * 15), audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + 0.12);
+        gain.gain.setValueAtTime(0.3 + (intensity * 0.6), audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+    }
+
+    // --- SONIDO AMBIENTAL DE SUSPENSO ---
+    let ambientDroneNode = null, ambientDroneGain = null;
+    let suspenseInterval = null, whisperInterval = null, creakInterval = null;
+
+    function startAmbientSuspense() {
+        if (!audioCtx || ambientDroneNode) return;
+
+        // Drone oscuro de fondo (zumbido profundo constante)
+        ambientDroneGain = audioCtx.createGain();
+        ambientDroneGain.gain.setValueAtTime(0.0, audioCtx.currentTime);
+        ambientDroneGain.gain.linearRampToValueAtTime(0.08, audioCtx.currentTime + 3.0);
+        ambientDroneGain.connect(audioCtx.destination);
+
+        function makeDroneLayer(freq, detune) {
+            let osc = audioCtx.createOscillator();
+            let filter = audioCtx.createBiquadFilter();
+            let lfo = audioCtx.createOscillator();
+            let lfoGain = audioCtx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            osc.detune.setValueAtTime(detune, audioCtx.currentTime);
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(180, audioCtx.currentTime);
+            lfo.type = 'sine';
+            lfo.frequency.setValueAtTime(0.07 + Math.random() * 0.05, audioCtx.currentTime);
+            lfoGain.gain.setValueAtTime(15, audioCtx.currentTime);
+            lfo.connect(lfoGain);
+            lfoGain.connect(filter.frequency);
+            osc.connect(filter);
+            filter.connect(ambientDroneGain);
+            lfo.start();
+            osc.start();
+            return osc;
+        }
+        makeDroneLayer(36, 0);
+        makeDroneLayer(36, 8);
+        makeDroneLayer(54, -5);
+        makeDroneLayer(72, 3);
+
+        // Cuerda tensa / suspenso cada cierto tiempo
+        suspenseInterval = setInterval(() => {
+            if (!audioCtx || audioCtx.state === 'suspended' || isGameOver) return;
+            let t = audioCtx.currentTime;
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            let filter = audioCtx.createBiquadFilter();
+            osc.type = 'sawtooth';
+            let baseFreq = 55 + Math.random() * 30;
+            osc.frequency.setValueAtTime(baseFreq, t);
+            osc.frequency.linearRampToValueAtTime(baseFreq * (0.85 + Math.random() * 0.3), t + 2.5);
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(300 + Math.random() * 400, t);
+            filter.Q.setValueAtTime(4, t);
+            gain.gain.setValueAtTime(0.0, t);
+            gain.gain.linearRampToValueAtTime(0.07, t + 0.6);
+            gain.gain.linearRampToValueAtTime(0.04, t + 2.0);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 3.5);
+            osc.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(t); osc.stop(t + 3.6);
+        }, 4500 + Math.random() * 3000);
+
+        // Chirridos y crujidos del ambiente
+        creakInterval = setInterval(() => {
+            if (!audioCtx || audioCtx.state === 'suspended' || isGameOver) return;
+            let t = audioCtx.currentTime;
+            let bufferSize = audioCtx.sampleRate * 0.4;
+            let buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            let data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
+            }
+            let source = audioCtx.createBufferSource();
+            source.buffer = buffer;
+            let filter = audioCtx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(800 + Math.random() * 1200, t);
+            filter.Q.setValueAtTime(8, t);
+            let gain = audioCtx.createGain();
+            gain.gain.setValueAtTime(0.12 + Math.random() * 0.12, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+            source.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+            source.start(t);
+        }, 6000 + Math.random() * 7000);
+
+        // Susurros / viento oscuro intermitente
+        whisperInterval = setInterval(() => {
+            if (!audioCtx || audioCtx.state === 'suspended' || isGameOver) return;
+            let t = audioCtx.currentTime;
+            let bufSize = audioCtx.sampleRate * 1.8;
+            let buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+            let d = buf.getChannelData(0);
+            for (let i = 0; i < bufSize; i++) d[i] = Math.random() * 2 - 1;
+            let src = audioCtx.createBufferSource();
+            src.buffer = buf;
+            let filt = audioCtx.createBiquadFilter();
+            filt.type = 'bandpass';
+            filt.frequency.setValueAtTime(400 + Math.random() * 800, t);
+            filt.Q.setValueAtTime(1.5, t);
+            let g = audioCtx.createGain();
+            g.gain.setValueAtTime(0.0, t);
+            g.gain.linearRampToValueAtTime(0.045, t + 0.5);
+            g.gain.linearRampToValueAtTime(0.025, t + 1.2);
+            g.gain.exponentialRampToValueAtTime(0.001, t + 1.8);
+            src.connect(filt); filt.connect(g); g.connect(audioCtx.destination);
+            src.start(t);
+        }, 9000 + Math.random() * 8000);
+    }
+
+    function stopAmbientSuspense() {
+        clearInterval(suspenseInterval); suspenseInterval = null;
+        clearInterval(whisperInterval); whisperInterval = null;
+        clearInterval(creakInterval); creakInterval = null;
+        if (ambientDroneGain && audioCtx) {
+            ambientDroneGain.gain.linearRampToValueAtTime(0.001, audioCtx.currentTime + 1.5);
+        }
+    }
+
+    function playJumpscareStinger() {
+        if (!audioCtx || audioCtx.state === 'suspended') return;
+        let t = audioCtx.currentTime;
+        // Golpe de impacto grave
+        let impactOsc = audioCtx.createOscillator();
+        let impactGain = audioCtx.createGain();
+        impactOsc.type = 'sawtooth';
+        impactOsc.frequency.setValueAtTime(120, t);
+        impactOsc.frequency.exponentialRampToValueAtTime(20, t + 0.35);
+        impactGain.gain.setValueAtTime(0.9, t);
+        impactGain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+        impactOsc.connect(impactGain); impactGain.connect(audioCtx.destination);
+        impactOsc.start(t); impactOsc.stop(t + 0.45);
+        // Ruido blanco de choque
+        let bufSize = audioCtx.sampleRate * 0.3;
+        let buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+        let data = buf.getChannelData(0);
+        for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1);
+        let noiseSrc = audioCtx.createBufferSource();
+        noiseSrc.buffer = buf;
+        let noiseGain = audioCtx.createGain();
+        noiseGain.gain.setValueAtTime(0.5, t);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+        noiseSrc.connect(noiseGain); noiseGain.connect(audioCtx.destination);
+        noiseSrc.start(t);
+        // Tono agudo perturbador
+        let shrillOsc = audioCtx.createOscillator();
+        let shrillGain = audioCtx.createGain();
+        shrillOsc.type = 'square';
+        shrillOsc.frequency.setValueAtTime(1800, t);
+        shrillOsc.frequency.exponentialRampToValueAtTime(200, t + 0.6);
+        shrillGain.gain.setValueAtTime(0.15, t);
+        shrillGain.gain.exponentialRampToValueAtTime(0.001, t + 0.65);
+        shrillOsc.connect(shrillGain); shrillGain.connect(audioCtx.destination);
+        shrillOsc.start(t); shrillOsc.stop(t + 0.7);
+    }
+
+    function playWinChime() {
+        if (!audioCtx || audioCtx.state === 'suspended') return;
+        let t = audioCtx.currentTime;
+        let freqs = [523, 659, 784, 1047];
+        freqs.forEach((freq, i) => {
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, t + i * 0.18);
+            gain.gain.setValueAtTime(0.0, t + i * 0.18);
+            gain.gain.linearRampToValueAtTime(0.12, t + i * 0.18 + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.18 + 1.2);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(t + i * 0.18); osc.stop(t + i * 0.18 + 1.3);
+        });
+    }
+
+    // --- ENTIDADES ---
+    const player = { x: 50, y: 50, r: 10, dir: 'S' }; 
+    const gem = { x: 0, y: 0, r: 10, visible: 0 }; 
+    
+    const stalker = { 
+        x: 650, 
+        y: 400, 
+        r: 14, 
+        speed: 0.8, 
+        particles: [],
+        stuckFrames: 0,
+        avoidDir: 1 
+    };
+    for(let i=0; i<12; i++) stalker.particles.push({phase: i * (Math.PI*2/12), radius: 5 + Math.random()*8, size: 2+Math.random()*3});
+
+    const peer = new Peer();
+    peer.on('open', id => document.getElementById('my-id').innerText = id);
+    
+    function copyId() {
+        navigator.clipboard.writeText(document.getElementById('my-id').innerText);
+        const btn = document.querySelector('.copy-btn'); btn.innerText = "COPIADO";
+        setTimeout(() => btn.innerText = "COPIAR", 2000);
+    }
+
+    let conn;
+    peer.on('connection', c => {
+        unlockAudio(); fadeOutMenuMusic(); conn = c; gameMode = 'online';
+        setupConn(); startGameUI();
+    });
+
+    function setupConn() {
+        conn.on('data', data => {
+            if (data.type === 'initRole') { myRole = data.role === 'escaper' ? 'stalker' : 'escaper'; }
+            if (data.type === 'move') {
+                if(myRole === 'escaper') { stalker.x = data.x; stalker.y = data.y; }
+                else { player.x = data.x; player.y = data.y; player.dir = data.dir; }
+            }
+            if (data.type === 'echo') { echoes.push(new Echo(data.x, data.y)); playEchoSound(); }
+            if (data.type === 'mapData') { walls = data.walls; gem.x = data.gemX; gem.y = data.gemY; }
+            if (data.type === 'captured') { 
+                captures = data.captures; 
+                level = data.level; 
+                triggerJumpscare(true); 
+            }
+            if (data.type === 'stalkerWin') {
+                captures = data.captures;
+                triggerStalkerFinalWin();
+            }
+            if (data.type === 'escaped') triggerFinalWin(false);
+            if (data.type === 'nextLevel') { level = data.level; initLevel(); }
+        });
+    }
+
+    function startOnline(role) {
+        unlockAudio(); fadeOutMenuMusic();
+        const targetId = document.getElementById('join-id').value;
+        if(!targetId) return alert("Frecuencia inválida");
+        myRole = role; gameMode = 'online'; conn = peer.connect(targetId);
+        conn.on('open', () => { 
+            conn.send({type: 'initRole', role: myRole});
+            setupConn(); startGameUI(); 
+        });
+    }
+
+    function startSolo() { unlockAudio(); fadeOutMenuMusic(); gameMode = 'solo'; myRole = 'escaper'; startGameUI(); }
+
+    function startGameUI() {
+        document.getElementById('setup-menu').style.display = 'none';
+        document.getElementById('game-ui').style.display = 'block';
+        startTime = Date.now(); initLevel(); startGameplayMusic(); startAmbientSuspense(); loop();
+    }
+
+    let mazeGrid = [];
+
+    function generateMazeAndGem() {
+        let attempts = 0;
+        while (attempts < 100) {
+            attempts++;
+            mazeGrid = Array(cols).fill(null).map(() => Array(rows).fill(false));
+            let tempWalls = [];
+            
+            tempWalls.push({x: 0, y: 0, w: canvas.width, h: 12, visible: 100, subType: 'tree'});
+            tempWalls.push({x: 0, y: canvas.height - 12, w: canvas.width, h: 12, visible: 100, subType: 'tree'});
+            tempWalls.push({x: 0, y: 0, w: 12, h: canvas.height, visible: 100, subType: 'tree'});
+            tempWalls.push({x: canvas.width - 12, y: 0, w: 12, h: canvas.height, visible: 100, subType: 'tree'});
+
+            for (let x = 1; x < cols - 1; x++) {
+                for (let y = 1; y < rows - 1; y++) {
+                    if ((x < 3 && y < 3) || (x > cols - 4 && y > rows - 4)) continue;
+                    if (Math.random() > 0.62 - (level * 0.01)) {
+                        let wallX = x * cellSize + 4; let wallY = y * cellSize + 4;
+                        let distToStart = Math.hypot(wallX - 50, wallY - 50);
+                        tempWalls.push({
+                            x: wallX, y: wallY, w: cellSize * 0.8, h: cellSize * 0.8, 
+                            visible: distToStart < 140 ? 60 : 0, 
+                            subType: Math.random() > 0.4 ? 'tree' : 'bush' 
+                        });
+                        mazeGrid[x][y] = true;
+                    }
+                }
+            }
+
+            let validCells = [];
+            for (let x = 2; x < cols - 2; x++) {
+                for (let y = 2; y < rows - 2; y++) {
+                    if (!mazeGrid[x][y]) validCells.push({x: x, y: y});
+                }
+            }
+            if (validCells.length === 0) continue;
+            let targetCell = validCells[Math.floor(Math.random() * validCells.length)];
+            let targetGemX = targetCell.x * cellSize + 25;
+            let targetGemY = targetCell.y * cellSize + 25;
+
+            if (checkPathExists(1, 1, targetCell.x, targetCell.y)) {
+                walls = tempWalls;
+                gem.x = targetGemX;
+                gem.y = targetGemY;
+                break;
+            }
+        }
+    }
+
+    function checkPathExists(startX, startY, targetX, targetY) {
+        let visited = Array(cols).fill(null).map(() => Array(rows).fill(false));
+        let queue = [{x: startX, y: startY}];
+        visited[startX][startY] = true;
+
+        while(queue.length > 0) {
+            let current = queue.shift();
+            if(current.x === targetX && current.y === targetY) return true;
+
+            let directions = [{x:0, y:-1}, {x:0, y:1}, {x:-1, y:0}, {x:1, y:0}];
+            for(let d of directions) {
+                let nx = current.x + d.x;
+                let ny = current.y + d.y;
+                if(nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
+                    if(!mazeGrid[nx][ny] && !visited[nx][ny]) {
+                        visited[nx][ny] = true;
+                        queue.push({x: nx, y: ny});
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    function initLevel() {
+        player.x = 50; player.y = 50; player.dir = 'S';
+        stalker.x = 650; stalker.y = 400; stalker.stuckFrames = 0;
+        pulses = 15; isGameOver = false; hasStartedMoving = false; gem.visible = 0; currentIntensity = 0;
+        jumpscareLayer.style.display = 'none'; 
+        jumpscareLayer.className = ''; 
+        vignette.style.boxShadow = "inset 0 0 150px rgba(0,0,0,0.98)"; vignette.style.backgroundColor = "transparent";
+        document.getElementById('lvl-display').innerText = level; document.getElementById('feast-display').innerText = captures;
+        particles = [];
+        
+        generateMazeAndGem();
+        if(conn && myRole === 'escaper') conn.send({type: 'mapData', walls: walls, gemX: gem.x, gemY: gem.y});
+        
+        stalker.speed = 0.9 + (level * 0.12); updateUI();
+    }
+
+    function updateUI() { document.getElementById('p-count').innerText = pulses; }
+
+    function triggerJumpscare(remote = false) {
+        isGameOver = true; 
+        currentIntensity = 0;
+        clearTimeout(gameplayMusicInterval); 
+        gameplayMusicInterval = null;
+
+        if (!remote) {
+            captures++;
+            document.getElementById('feast-display').innerText = captures;
+
+            if (captures >= 10) {
+                if (conn) conn.send({type: 'stalkerWin', captures: captures});
+                triggerStalkerFinalWin();
+                return;
+            }
+            level = Math.max(1, level - 1);
+            if(conn) conn.send({type: 'captured', captures, level});
+        } else {
+            if (captures >= 10) {
+                triggerStalkerFinalWin();
+                return;
+            }
+        }
+
+        for(let i=0; i<40; i++) particles.push(new Particle(player.x, player.y, '#ff0000', 5));
+        playJumpscareStinger();
+        jumpscareText.innerText = (myRole === 'stalker') ? "VÍCTIMA ATRAPADA" : "EL ENTE TE ENGULLÓ";
+        jumpscareLayer.className = '';
+        jumpscareLayer.style.display = 'flex';
+        setTimeout(() => { initLevel(); startGameplayMusic(); }, 2200);
+    }
+
+    function triggerStalkerFinalWin() {
+        isGameOver = true; 
+        currentIntensity = 0;
+        stopAmbientSuspense();
+        playJumpscareStinger();
+        document.getElementById('feast-display').innerText = captures;
+        
+        for (let i = 0; i < 120; i++) particles.push(new Particle(stalker.x, stalker.y, '#800000', 4));
+        walls.forEach(w => w.visible = 100); gem.visible = 100;
+
+        jumpscareLayer.className = 'stalker-win';
+        
+        if (myRole === 'stalker') {
+            jumpscareText.innerHTML = `DISFRUTA TU FESTÍN ⛼<br><span style="font-size:0.5em; color:#ffaaaa;">Has consumido su alma por completo. El huerto es tuyo.</span>`;
+        } else {
+            jumpscareText.innerHTML = `EL ENTE TE HA ENCONTRADO<br><span style="font-size:0.5em; color:#ff8888;">Tu cordura se ha desvanecido en la niebla perpetua.</span>`;
+        }
+
+        jumpscareLayer.style.display = 'flex';
+        setTimeout(() => location.reload(), 6000);
+    }
+
+    function triggerFinalWin(isEscaper = true) {
+        isGameOver = true; currentIntensity = 0;
+        clearTimeout(gameplayMusicInterval); gameplayMusicInterval = null;
+        stopAmbientSuspense();
+        if (isEscaper) playWinChime();
+        let timeTaken = Math.floor((Date.now() - startTime) / 1000);
+        for (let i = 0; i < 150; i++) particles.push(new Particle(Math.random() * canvas.width, Math.random() * canvas.height, 'rgba(150,50,50,0.15)', 0.5));
+        walls.forEach(w => w.visible = 100); gem.visible = 100;
+        jumpscareLayer.className = 'win';
+        jumpscareText.innerHTML = isEscaper 
+            ? `SOBREVIVISTE A LA PESADILLA ⛼<br><span style="font-size:0.5em; color:#a1b5a1;">Escapaste del Huerto en ${timeTaken}s. Las almas descansan.</span>`
+            : `EL GRANJERO ESCAPÓ DE LAS SOMBRAS<br><span style="font-size:0.5em; color:#8c7171;">Tu presencia oscura se disuelve con el amanecer.</span>`;
+        jumpscareLayer.style.display = 'flex';
+        if(isEscaper && conn) conn.send({type: 'escaped'});
+        setTimeout(() => location.reload(), 6000);
+    }
+
+    class Echo {
+        constructor(x, y) { this.x = x; this.y = y; this.radius = 0; this.opacity = 1; this.maxRadius = 240;}
+        update() { 
+            this.radius += 7; this.opacity = 1 - (this.radius / this.maxRadius);
+            if(Math.hypot(this.x - gem.x, this.y - gem.y) < this.radius) gem.visible = 50;
+            walls.forEach(w => {
+                let cx = Math.max(w.x, Math.min(this.x, w.x + w.w));
+                let cy = Math.max(w.y, Math.min(this.y, w.y + w.h));
+                if(Math.hypot(this.x - cx, this.y - cy) < this.radius) w.visible = 50;
+            });
+        }
+        draw() {
+            if (this.opacity <= 0) return;
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+            ctx.strokeStyle = `rgba(212, 175, 55, ${this.opacity * 0.4})`; ctx.lineWidth = 2; ctx.stroke();
+        }
+    }
+
+    class Particle {
+        constructor(x, y, color, speedFact=1) {
+            this.x = x; this.y = y;
+            this.vx = (Math.random() - 0.5) * speedFact; this.vy = (Math.random() - 0.5) * speedFact - 0.1; 
+            this.radius = Math.random() * 3 + 1; this.opacity = 1; this.color = color;
+        }
+        update() { this.x += this.vx; this.y += this.vy; this.opacity -= isGameOver ? 0.005 : 0.02; }
+        draw() {
+            if(this.opacity <= 0) return;
+            ctx.fillStyle = this.color;
+            if(this.color.startsWith('#')) ctx.fillStyle = this.color + Math.floor(this.opacity*255).toString(16).padStart(2, '0');
+            ctx.fillRect(this.x - this.radius/2, this.y - this.radius/2, this.radius, this.radius);
+        }
+    }
+
+    window.addEventListener('keydown', e => {
+        if(isGameOver) return;
+        keys[e.code] = true;
+        if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) hasStartedMoving = true;
+        
+        if(e.code === 'Space' && pulses > 0 && myRole === 'escaper') {
+            hasStartedMoving = true; echoes.push(new Echo(player.x, player.y));
+            pulses--; updateUI(); playEchoSound();
+            for(let i=0; i<12; i++) particles.push(new Particle(player.x, player.y, '#e5c158', 2.5));
+            if(conn) conn.send({type: 'echo', x: player.x, y: player.y});
+        }
+    });
+    window.addEventListener('keyup', e => delete keys[e.code]);
+
+    function checkWall(x, y, radius) {
+        return walls.some(w => x+radius > w.x && x-radius < w.x+w.w && y+radius > w.y && y-radius < w.y+w.h);
+    }
+    
+    function drawPlayer(p) {
+        ctx.save(); ctx.translate(p.x, p.y);
+        
+        let angle = 0;
+        if (p.dir === 'N') angle = -Math.PI/2;
+        if (p.dir === 'S') angle = Math.PI/2;
+        if (p.dir === 'W') angle = Math.PI;
+        if (p.dir === 'E') angle = 0;
+
+        if (hasStartedMoving && !isGameOver) {
+            let grad = ctx.createRadialGradient(0,0, 5, Math.cos(angle)*40, Math.sin(angle)*40, 50);
+            grad.addColorStop(0, 'rgba(255, 255, 210, 0.25)');
+            grad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = grad;
+            ctx.beginPath(); ctx.moveTo(0,0);
+            ctx.arc(0,0, 65, angle - 0.5, angle + 0.5); ctx.closePath(); ctx.fill();
+        }
+
+        ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(-7, 6, 14, 4);
+        ctx.fillStyle = '#4a2f13'; ctx.fillRect(-6, -4, 12, 10); 
+        ctx.fillStyle = '#223a5e'; ctx.fillRect(-6, -4, 12, 5);  
+        ctx.fillStyle = '#1c120c'; ctx.fillRect(-8, -2, 2, 4);   
+        ctx.fillStyle = '#d9a066'; ctx.fillRect(-4, -11, 8, 7); 
+        ctx.fillStyle = '#2b1a09'; ctx.fillRect(-5, -13, 10, 3); 
+        ctx.fillRect(-5, -11, 2, 4); 
+
+        ctx.fillStyle = '#000';
+        if(p.dir === 'S' || p.dir === 'E') ctx.fillRect(1, -8, 2, 2);
+        if(p.dir === 'S' || p.dir === 'W') ctx.fillRect(-3, -8, 2, 2);
+        if(p.dir === 'N') { ctx.fillStyle = '#2b1a09'; ctx.fillRect(-4, -9, 8, 3); } 
+
+        ctx.restore();
+    }
+
+    function drawStalker(s) {
+        ctx.save(); ctx.translate(s.x, s.y);
+        ctx.shadowColor = '#ff0000'; ctx.shadowBlur = 20;
+
+        let bobbing = Math.sin(time * 0.15) * 2;
+        ctx.fillStyle = 'rgba(15, 5, 5, 0.95)';
+        ctx.beginPath();
+        ctx.moveTo(-12, 12); ctx.lineTo(-15, -6); ctx.lineTo(0, -16 + bobbing);
+        ctx.lineTo(15, -6); ctx.lineTo(12, 12); ctx.lineTo(6, 4); ctx.lineTo(0, 12); ctx.lineTo(-6, 4);
+        ctx.closePath(); ctx.fill();
+
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(-8, -8, 16, 14);
+        ctx.fillRect(-4, -12, 8, 4);
+
+        ctx.fillStyle = '#ff0000'; ctx.fillRect(-6, -4, 4, 3); ctx.fillRect(2, -4, 4, 3);
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(-5, -3, 2, 1); ctx.fillRect(3, -3, 2, 1);
+
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(139, 0, 0, 0.6)';
+        s.particles.forEach((t) => {
+            let px = Math.cos(time * 0.08 + t.phase) * (s.r + t.radius * 0.7);
+            let py = Math.sin(time * 0.08 + t.phase) * (s.r + t.radius * 0.7) + (bobbing * 0.5);
+            ctx.fillRect(px - t.size/2, py - t.size/2, t.size, t.size); 
+        });
+        ctx.restore();
+    }
+
+    function drawGem(g) {
+        let distToPlayer = Math.hypot(player.x - g.x, player.y - g.y);
+        if (g.visible <= 0 && distToPlayer > 85 && myRole !== 'stalker' && !isGameOver) return;
+        ctx.save(); ctx.translate(g.x, g.y);
+        let pulse = Math.sin(time * 0.2) * 5;
+        ctx.shadowColor = '#d352ef'; ctx.shadowBlur = 15 + pulse;
+        ctx.fillStyle = '#4af053'; ctx.fillRect(-1, -12, 3, 4); ctx.fillRect(2, -14, 2, 2);
+        ctx.fillStyle = '#9b22b7'; 
+        ctx.beginPath(); ctx.moveTo(0, -9); ctx.lineTo(8, -4); ctx.lineTo(10, 3); ctx.lineTo(0, 11); ctx.lineTo(-10, 3); ctx.lineTo(-8, -4); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#da47ff'; ctx.fillRect(-5, -4, 10, 7);
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(-2, -2, 3, 3); 
+        ctx.restore();
+    }
+
+    function drawForestWall(w) {
+        let distActive = (myRole === 'escaper') ? Math.hypot(player.x - w.x, player.y - w.y) : Math.hypot(stalker.x - w.x, stalker.y - w.y);
+        let effectiveVisible = (distActive < 100) ? Math.max(w.visible, 40) : w.visible;
+
+        if(effectiveVisible <= 0 && !isGameOver) return;
+        ctx.save();
+        let alpha = effectiveVisible / 50;
+        if(isGameOver) alpha = 1;
+        ctx.fillStyle = `rgba(16, 10, 10, ${alpha})`;
+        ctx.fillRect(w.x, w.y, w.w, w.h);
+
+        if (w.subType === 'tree') {
+            ctx.fillStyle = `rgba(54, 31, 20, ${alpha * 0.9})`; 
+            ctx.fillRect(w.x + w.w/2 - 4, w.y + w.h - 15, 8, 15);
+            ctx.fillRect(w.x + w.w/2 - 6, w.y + w.h - 4, 12, 4); 
+            ctx.fillStyle = `rgba(20, 43, 25, ${alpha})`; 
+            ctx.fillRect(w.x + 2, w.y + 4, w.w - 4, w.h - 14);
+            ctx.fillStyle = `rgba(37, 71, 44, ${alpha})`; 
+            ctx.fillRect(w.x + 6, w.y + 2, w.w - 12, w.h - 18);
+            ctx.fillRect(w.x + 10, w.y, w.w - 20, 4);
+            ctx.fillStyle = `rgba(58, 97, 67, ${alpha * 0.5})`; 
+            ctx.fillRect(w.x + 6, w.y + 5, 4, 4);
+            ctx.fillRect(w.x + w.w - 12, w.y + 8, 4, 4);
+        } else {
+            ctx.fillStyle = `rgba(28, 20, 28, ${alpha})`; 
+            ctx.fillRect(w.x + 4, w.y + 4, w.w - 8, w.h - 8);
+            ctx.fillStyle = `rgba(64, 28, 40, ${alpha})`; 
+            ctx.fillRect(w.x + 8, w.y + 2, w.w - 16, 2);
+            ctx.fillRect(w.x + 2, w.y + 8, 2, w.h - 16);
+            ctx.fillRect(w.x + w.w - 4, w.y + 8, 2, w.h - 16);
+            ctx.fillRect(w.x + 6, w.y + 6, w.w - 12, w.h - 12);
+            ctx.fillStyle = '#ff4d4d';
+            ctx.fillRect(w.x + 6, w.y + 4, 2, 2);
+            ctx.fillRect(w.x + w.w - 10, w.y + 12, 2, 2);
+        }
+        ctx.restore();
+    }
+
+    function drawGroundPattern() {
+        ctx.fillStyle = '#140c0c'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#1b1010';
+        for (let i = 0; i < canvas.width; i += 70) {
+            for (let j = 0; j < canvas.height; j += 60) {
+                ctx.fillRect(i + ((j % 4) * 12), j + 10, 4, 2);
+                ctx.fillRect(i + ((j % 3) * 8), j + 35, 2, 2);
+            }
+        }
+    }
+
+    function updateStalkerAI() {
+        let angle = Math.atan2(player.y - stalker.y, player.x - stalker.x);
+        let vx = Math.cos(angle) * stalker.speed;
+        let vy = Math.sin(angle) * stalker.speed;
+        
+        let oldX = stalker.x;
+        let oldY = stalker.y;
+
+        if (!checkWall(stalker.x + vx, stalker.y + vy, stalker.r)) {
+            stalker.x += vx;
+            stalker.y += vy;
+            stalker.stuckFrames = 0;
+        } else {
+            let slideFactor = stalker.speed * 1.1;
+            let perpendicularAngle = angle + (Math.PI / 2) * stalker.avoidDir;
+            let sx = Math.cos(perpendicularAngle) * slideFactor;
+            let sy = Math.sin(perpendicularAngle) * slideFactor;
+
+            if (!checkWall(stalker.x + sx, stalker.y + sy, stalker.r)) {
+                stalker.x += sx;
+                stalker.y += sy;
+            } else {
+                let ox = Math.cos(angle - (Math.PI / 2) * stalker.avoidDir) * slideFactor;
+                let oy = Math.sin(angle - (Math.PI / 2) * slideFactor) * slideFactor;
+                if (!checkWall(stalker.x + ox, stalker.y + oy, stalker.r)) {
+                    stalker.x += ox;
+                    stalker.y += oy;
+                } else {
+                    stalker.stuckFrames++;
+                    if(stalker.stuckFrames > 15) {
+                        stalker.avoidDir *= -1;
+                        stalker.x -= vx * 0.5;
+                        stalker.y -= vy * 0.5;
+                        stalker.stuckFrames = 0;
+                    }
+                }
+            }
+        }
+
+        if (Math.hypot(stalker.x - oldX, stalker.y - oldY) < 0.15) {
+            let forceAngle = angle + (Math.PI / 2) * (Math.random() > 0.5 ? 1 : -1);
+            let fx = Math.cos(forceAngle) * stalker.speed;
+            let fy = Math.sin(forceAngle) * stalker.speed;
+            if (!checkWall(stalker.x + fx, stalker.y + fy, stalker.r)) {
+                stalker.x += fx;
+                stalker.y += fy;
+            }
+        }
+    }
+
+    function loop() {
+        time++; 
+        if (isGameOver && (jumpscareLayer.classList.contains('win') || jumpscareLayer.classList.contains('stalker-win'))) {
+            ctx.fillStyle = jumpscareLayer.classList.contains('win') ? '#121a13' : '#140505'; 
+            ctx.fillRect(0, 0, 700, 450);
+        } else {
+            drawGroundPattern();
+        }
+        
+        if(!isGameOver) {
+            let dx=0, dy=0, s=3.2; 
+            if(keys['ArrowUp'] || keys['KeyW']) { dy = -s; player.dir = 'N'; }
+            if(keys['ArrowDown'] || keys['KeyS']) { dy = s; player.dir = 'S'; }
+            if(keys['ArrowLeft'] || keys['KeyA']) { dx = -s; player.dir = 'W'; }
+            if(keys['ArrowRight'] || keys['KeyD']) { dx = s; player.dir = 'E'; }
+
+            if (dx !== 0 && dy !== 0) {
+                dx *= 0.7071;
+                dy *= 0.7071;
+            }
+
+            if(myRole === 'escaper') {
+                if(!checkWall(player.x + dx, player.y + dy, player.r)) { player.x += dx; player.y += dy; }
+            } else {
+                if(!checkWall(stalker.x + dx, stalker.y + dy, stalker.r)) { stalker.x += dx; stalker.y += dy; }
+            }
+
+            if(hasStartedMoving) {
+                walls.forEach(w => {
+                    let d = Math.hypot(player.x - w.x, player.y - w.y);
+                    if(d < 85) w.visible = Math.max(w.visible, 35);
+                });
+            }
+
+            if(gameMode === 'solo' && hasStartedMoving) {
+                updateStalkerAI();
+            }
+
+            if(conn && hasStartedMoving) conn.send({type: 'move', x: (myRole==='escaper'?player.x:stalker.x), y: (myRole==='escaper'?player.y:stalker.y), dir: player.dir});
+
+            let distStalker = Math.hypot(player.x - stalker.x, player.y - stalker.y);
+
+            if (hasStartedMoving) {
+                let alertRange = 230;
+                if (distStalker < alertRange) {
+                    currentIntensity = (1 - distStalker / alertRange); 
+                    
+                    if (myRole === 'escaper') {
+                        let pulse = 0.8 + Math.sin(time * 0.2) * 0.2;
+                        vignette.style.boxShadow = `inset 0 0 ${90 + (currentIntensity * 140 * pulse)}px rgba(180, 0, 0, ${0.65 * currentIntensity})`;
+                        vignette.style.backgroundColor = `rgba(5, 1, 1, ${currentIntensity * 0.92})`;
+
+                        let heartbeatInterval = 850 - (currentIntensity * 650); 
+                        let now = Date.now();
+                        if (now - lastHeartbeat > heartbeatInterval) {
+                            playHeartbeatSound(currentIntensity); lastHeartbeat = now;
+                        }
+                    }
+                } else { 
+                    currentIntensity = 0;
+                    if (myRole === 'escaper') {
+                        vignette.style.boxShadow = "inset 0 0 150px rgba(0,0,0,0.98)"; vignette.style.backgroundColor = "transparent";
+                    }
+                }
+            }
+
+            if(distStalker < (player.r + stalker.r) && hasStartedMoving) {
+                triggerJumpscare();
+            }
+
+            if(myRole === 'escaper' && Math.hypot(player.x - gem.x, player.y - gem.y) < 22) {
+                level++;
+                if(level > 15) triggerFinalWin(true); 
+                else { if(conn) conn.send({type: 'nextLevel', level: level}); initLevel(); }
+            }
+        }
+
+        echoes = echoes.filter(e => e.opacity > 0); echoes.forEach(e => { e.update(); e.draw(); });
+        particles = particles.filter(p => p.opacity > 0); particles.forEach(p => { p.update(); p.draw(); });
+        walls.forEach(w => { drawForestWall(w); if(w.visible > 0 && !isGameOver) w.visible--; });
+        drawGem(gem); if (gem.visible > 0 && !isGameOver) gem.visible--;
+
+        if (!isGameOver || jumpscareLayer.style.display === 'none') {
+            drawStalker(stalker); drawPlayer(player);
+        } else if (jumpscareLayer.classList.contains('win') || jumpscareLayer.classList.contains('stalker-win')) {
+            if(jumpscareLayer.classList.contains('win')) drawPlayer(player);
+            if(jumpscareLayer.classList.contains('stalker-win')) drawStalker(stalker);
+        }
+        
+        requestAnimationFrame(loop);
+    }
+</script>
+</body>
+</html>
